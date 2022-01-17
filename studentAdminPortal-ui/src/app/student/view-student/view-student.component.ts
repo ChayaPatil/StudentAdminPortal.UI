@@ -1,4 +1,6 @@
+import { ViewChild } from '@angular/core';
 import { Component, OnInit } from '@angular/core';
+import { NgForm } from '@angular/forms';
 import { MatSnackBar, MatSnackBarHorizontalPosition, MatSnackBarVerticalPosition } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Gender } from '../../models/ui-models/gender.model';
@@ -45,6 +47,10 @@ export class ViewStudentComponent implements OnInit {
 
   isNewStudent = true;
   header = '';
+  displayProfileImageUrl = '';
+
+  @ViewChild('studentDetailsForm') studentDetailsForm?: NgForm;
+ 
   ngOnInit(): void {
     this.route.paramMap.subscribe(
       (params) => {
@@ -63,6 +69,7 @@ export class ViewStudentComponent implements OnInit {
           if (this.studentId.toLowerCase() === 'Add'.toLowerCase()) {
             this.isNewStudent = true;
             this.header = 'Add New Student';
+            this.setImage();
           } else {
             this.isNewStudent = false;
             this.header = 'Edit Student';
@@ -70,9 +77,10 @@ export class ViewStudentComponent implements OnInit {
               .subscribe(
                 (successResponse) => {
                   this.student = successResponse;
+                  this.setImage();
                 },
                 (errorResponse) => {
-                  console.log(errorResponse);
+                  this.setImage();
                 }
               );            
           }
@@ -83,18 +91,21 @@ export class ViewStudentComponent implements OnInit {
   };
 
   onUpdate(): void {
-    this.studentService.updateStudent(this.student.id, this.student)
-      .subscribe(
-        (successResponse) => {
-          this.snackbar.open('Student updated successfully', undefined, {
-            horizontalPosition: this.horizontalPosition,
-            verticalPosition: this.verticalPosition
-          });
-        },
-        errorResponse => {
-          console.log(errorResponse);
-        }
-      )
+    if (this.studentDetailsForm?.form.valid) {
+
+      this.studentService.updateStudent(this.student.id, this.student)
+        .subscribe(
+          (successResponse) => {
+            this.snackbar.open('Student updated successfully', undefined, {
+              horizontalPosition: this.horizontalPosition,
+              verticalPosition: this.verticalPosition
+            });
+          },
+          errorResponse => {
+            console.log(errorResponse);
+          }
+        )
+    }
   };
   onDelete() {
     this.studentService.deleteStudent(this.student.id)
@@ -114,19 +125,52 @@ export class ViewStudentComponent implements OnInit {
   };
 
   onAdd() {
-    this.studentService.addStudent(this.student)
-      .subscribe(
-        (successResponse) => {
-          this.snackbar.open('Student created successfully', undefined, {
-            duration:2000
-          });
-          setTimeout(() => {
-            this.router.navigateByUrl(`students/${successResponse.id}`);
-          }, 2000);
-        },
-        errorResponse => {
-          console.log(errorResponse);
-        }
-      )
+    if(this.studentDetailsForm?.form.valid) {
+      //submit form
+      this.studentService.addStudent(this.student)
+        .subscribe(
+          (successResponse) => {
+            this.snackbar.open('Student created successfully', undefined, {
+              duration: 2000
+            });
+            setTimeout(() => {
+              this.router.navigateByUrl(`students/${successResponse.id}`);
+            }, 2000);
+          },
+          errorResponse => {
+            console.log(errorResponse);
+          }
+        )
+    }
+    
+  }
+
+  uploadImage(event: any): void {
+    if (this.studentId) {
+      const file = event.target.files[0];
+      this.studentService.uploadImage(this.student.id, file)
+        .subscribe(
+          (successResponse) => {
+            this.student.profileImageUrl = successResponse;
+            this.setImage();
+            this.snackbar.open('Profile Image updated successfully', undefined, {
+              duration: 2000
+            });
+          },
+          errorResponse => {
+
+          }
+        )
+    }
+  }
+
+  private setImage() {
+    if (this.student.profileImageUrl) {
+      //Fetch the Image by Url
+      this.displayProfileImageUrl = this.studentService.getImagePath(this.student.profileImageUrl);
+    } else {
+      //display a default
+      this.displayProfileImageUrl='/assets/user3.png'
+    }
   }
 }
